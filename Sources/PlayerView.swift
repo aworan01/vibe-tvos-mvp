@@ -184,7 +184,10 @@ final class PlaybackCoordinator: ObservableObject {
             avPlayer.replaceCurrentItem(with: AVPlayerItem(url: channel.streamURL))
             avPlayer.play()
         case .vlc:
-            let media = VLCMedia(url: channel.streamURL)
+            guard let media = VLCMedia(url: channel.streamURL) else {
+                advance()
+                return
+            }
             if let userAgent = channel.userAgent {
                 media.addOption(":http-user-agent=\(userAgent)")
             }
@@ -200,7 +203,11 @@ final class PlaybackCoordinator: ObservableObject {
                 return
             }
             clearKeyPlayback = relay
-            vlcPlayer.media = VLCMedia(url: relay.url)
+            guard let media = VLCMedia(url: relay.url) else {
+                advance()
+                return
+            }
+            vlcPlayer.media = media
             vlcPlayer.play()
         }
         monitorAttempt()
