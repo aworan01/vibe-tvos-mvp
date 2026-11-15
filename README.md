@@ -40,9 +40,11 @@ address on a phone or computer connected to the same trusted network, choose
 an M3U file, enter the code, and send it. Uploads are limited to 8 MB, the code
 accepts one successful upload, and ten incorrect code attempts disable it.
 
-The parsed library is saved inside the app sandbox with complete file
-protection and restored when the app launches again. Reinstalling or deleting
-the app removes this local library.
+The parsed library is saved inside the private app sandbox and restored when
+the app launches again. The app requests complete file protection first. On
+Apple TV systems that reject lock-state file protection, it falls back to an
+atomic sandboxed write so the library remains usable and cannot be left
+partially written. Reinstalling or deleting the app removes this local library.
 
 ## Current playback limits
 

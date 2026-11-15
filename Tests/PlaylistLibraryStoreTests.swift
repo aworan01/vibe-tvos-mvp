@@ -24,4 +24,26 @@ final class PlaylistLibraryStoreTests: XCTestCase {
 
         XCTAssertEqual(try store.load(), expected)
     }
+
+    func testFallsBackToSandboxedAtomicWriteWhenProtectionIsRejected() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var attempts: [Data.WritingOptions] = []
+        let store = PlaylistLibraryStore(directory: directory) { data, url, options in
+            attempts.append(options)
+            if options.contains(.completeFileProtection) {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            try data.write(to: url, options: options)
+        }
+        let expected = SavedLibrary()
+
+        try store.save(expected)
+
+        XCTAssertEqual(attempts.count, 2)
+        XCTAssertTrue(attempts[0].contains(.completeFileProtection))
+        XCTAssertEqual(attempts[1], .atomic)
+        XCTAssertEqual(try store.load(), expected)
+    }
 }
