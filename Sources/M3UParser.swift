@@ -17,6 +17,32 @@ enum M3UParserError: LocalizedError {
 struct M3UParser {
     static let maximumBytes = 8_388_608
 
+    static func guideURL(in data: Data) -> URL? {
+        guard let text = String(data: data.prefix(16_384), encoding: .utf8),
+              let header = text.components(separatedBy: .newlines).first(where: {
+                  $0.trimmingCharacters(in: .whitespaces).uppercased().hasPrefix("#EXTM3U")
+              }) else {
+            return nil
+        }
+        let pattern = #"(?:url-tvg|x-tvg-url)\s*=\s*"([^"]+)""#
+        guard let regex = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive]
+        ),
+        let match = regex.firstMatch(
+            in: header,
+            range: NSRange(header.startIndex..., in: header)
+        ),
+        let range = Range(match.range(at: 1), in: header),
+        let url = URL(string: String(header[range])),
+        let scheme = url.scheme?.lowercased(),
+        ["http", "https"].contains(scheme),
+        url.host?.isEmpty == false else {
+            return nil
+        }
+        return url
+    }
+
     func parse(data: Data) throws -> [Channel] {
         guard data.count <= Self.maximumBytes else { throw M3UParserError.tooLarge }
         guard let text = String(data: data, encoding: .utf8) else { throw M3UParserError.invalidEncoding }

@@ -5,20 +5,36 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
+packages:
+  VLCKit:
+    url: https://github.com/videolan/vlckit.git
+    revision: 6b87735a95fd3aa96f0fdb6d1b465a2d92badd8f
 targets:
   VibeTV:
     type: application
     platform: tvOS
     sources:
       - Sources
+      - Native
+      - path: build/notices
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: VLCKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.VibeTV
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CLANG_ENABLE_OBJC_ARC: YES
+        SWIFT_OBJC_BRIDGING_HEADER: Native/ClearKey.h
+        HEADER_SEARCH_PATHS: "$(SRCROOT)/build/ffmpeg/$(PLATFORM_NAME)/include"
+        LIBRARY_SEARCH_PATHS: "$(SRCROOT)/build/ffmpeg/$(PLATFORM_NAME)/lib"
+        OTHER_LDFLAGS: "$(inherited) -lavformat -lavcodec -lavutil -lxml2 -liconv -framework Security -framework CoreFoundation"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Vibe TV
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Receive playlist files directly from a browser on your trusted local network.
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES
     scheme:
       testTargets:
         - VibeTVTests

@@ -8,7 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: brew install xcodegen pkgconf
+      - name: Build playback dependencies
+        run: |
+          bash scripts/build-ffmpeg.sh appletvsimulator
+          bash scripts/build-ffmpeg.sh appletvos
       - name: Generate project
         run: xcodegen generate
       - name: Compile app and tests

@@ -3,6 +3,40 @@ import Foundation
 struct SavedLibrary: Codable, Equatable {
     var channels: [Channel] = []
     var favourites: Set<UUID> = []
+    var recentChannelIDs: [UUID] = []
+    var lastChannelID: UUID?
+    var guideURL: URL?
+    var programmes: [EPGProgramme] = []
+
+    init(
+        channels: [Channel] = [],
+        favourites: Set<UUID> = [],
+        recentChannelIDs: [UUID] = [],
+        lastChannelID: UUID? = nil,
+        guideURL: URL? = nil,
+        programmes: [EPGProgramme] = []
+    ) {
+        self.channels = channels
+        self.favourites = favourites
+        self.recentChannelIDs = recentChannelIDs
+        self.lastChannelID = lastChannelID
+        self.guideURL = guideURL
+        self.programmes = programmes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case channels, favourites, recentChannelIDs, lastChannelID, guideURL, programmes
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        channels = try values.decodeIfPresent([Channel].self, forKey: .channels) ?? []
+        favourites = try values.decodeIfPresent(Set<UUID>.self, forKey: .favourites) ?? []
+        recentChannelIDs = try values.decodeIfPresent([UUID].self, forKey: .recentChannelIDs) ?? []
+        lastChannelID = try values.decodeIfPresent(UUID.self, forKey: .lastChannelID)
+        guideURL = try values.decodeIfPresent(URL.self, forKey: .guideURL)
+        programmes = try values.decodeIfPresent([EPGProgramme].self, forKey: .programmes) ?? []
+    }
 }
 
 enum PlaylistLibraryError: LocalizedError {

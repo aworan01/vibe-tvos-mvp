@@ -8,8 +8,12 @@ An initial native SwiftUI media-player skeleton for tvOS 17 and later.
 - Extended M3U parsing with preservation of EXTINF, EXTVLCOPT, and KODIPROP
 - HLS, DASH, ClearKey, and Widevine capability assessment
 - Basic HLS playback through AVPlayer
+- Clear HLS fallback and clear DASH playback through VLCKit
+- ClearKey DASH fallback through a constrained FFmpeg relay
 - Local-network M3U upload using a one-time six-digit code
 - Persistent on-device channel library protected by Apple file protection
+- Category browsing, channel logos, favourites, recent channels, last-channel resume, and channel zapping
+- XMLTV import with now/next information and a six-hour grid guide
 - EPG auto-match and TMDB client scaffolding
 - Synthetic parser tests with no real stream addresses or DRM credentials
 - Layered Vibe TV app icon for the Apple TV Home Screen
@@ -49,7 +53,20 @@ Reinstalling or deleting the app removes this local library.
 
 ## Current playback limits
 
-AVPlayer handles ordinary HLS sources supported by tvOS. The app detects DASH, ClearKey, and Widevine so the UI can explain their capabilities, but this MVP does not implement those playback paths. Widevine is not natively supported by AVPlayer on tvOS. A production DRM integration requires authorization from the content provider and an appropriate playback SDK or Apple FairPlay workflow.
+AVPlayer is tried first for HLS. VLCKit is used for clear DASH and as a
+fallback for streams AVPlayer cannot open. DRM declarations are treated as
+hints: the app first attempts clear playback, then uses the ClearKey DASH relay
+when valid inline key data is available. Widevine is attempted only as clear
+media; encrypted Widevine still requires an authorised commercial tvOS SDK.
+
+The FFmpeg build is deliberately restricted to the protocols, demuxers,
+decoders, and MPEG-TS output required by the relay. It does not defeat DRM or
+acquire keys. It only consumes ClearKey values already supplied by an
+authorised playlist.
 
 TMDB and EPG services are protocols with placeholder implementations. Add credentials through a local, ignored configuration file or secure service; never hard-code them.
+
+VLCKit is provided by VideoLAN. The ClearKey relay uses a pinned LGPL FFmpeg
+revision built by 'scripts/build-ffmpeg.sh'; its licence and source reference
+are embedded in the application bundle by the build workflow.
 
