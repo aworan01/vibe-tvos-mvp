@@ -9,11 +9,13 @@ An initial native SwiftUI media-player skeleton for tvOS 17 and later.
 - HLS, DASH, ClearKey, and Widevine capability assessment
 - Basic HLS playback through AVPlayer
 - Clear HLS fallback and clear DASH playback through VLCKit
-- ClearKey DASH fallback through a constrained FFmpeg relay
+- ClearKey HLS/DASH fallback through a constrained FFmpeg relay
 - Local-network M3U upload using a one-time six-digit code
 - Persistent on-device channel library protected by Apple file protection
+- Multiple named playlists with enable/delete controls and duplicate-import refresh
+- Alphabetical playlist/channel browsing and Live TV search
 - Category browsing, channel logos, favourites, recent channels, last-channel resume, and channel zapping
-- XMLTV import with now/next information and a six-hour grid guide
+- Per-playlist XMLTV import with now/next information and a six-hour grid guide
 - EPG auto-match and TMDB client scaffolding
 - Synthetic parser tests with no real stream addresses or DRM credentials
 - Layered Vibe TV app icon for the Apple TV Home Screen
@@ -44,7 +46,8 @@ address on a phone or computer connected to the same trusted network, choose
 an M3U file, enter the code, and send it. Uploads are limited to 8 MB, the code
 accepts one successful upload, and ten incorrect code attempts disable it.
 
-The parsed library is saved inside the private app sandbox and restored when
+Each upload is added as a playlist; importing the exact same file refreshes its
+existing entry. The parsed library is saved inside the private app sandbox and restored when
 the app launches again. Storage tries Application Support, Documents, and then
 Caches. At each location, the app requests complete file protection first and
 falls back to an atomic sandboxed write when tvOS rejects lock-state
@@ -55,8 +58,8 @@ Reinstalling or deleting the app removes this local library.
 
 AVPlayer is tried first for HLS. VLCKit is used for clear DASH and as a
 fallback for streams AVPlayer cannot open. DRM declarations are treated as
-hints: the app first attempts clear playback, then uses the ClearKey DASH relay
-when valid inline key data is available. Widevine is attempted only as clear
+hints: the app first attempts clear playback, then uses the ClearKey HLS/DASH relay
+when valid inline JWK or hexadecimal key data is available. Widevine is attempted only as clear
 media; encrypted Widevine still requires an authorised commercial tvOS SDK.
 
 The FFmpeg build is deliberately restricted to the protocols, demuxers,

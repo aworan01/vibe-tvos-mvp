@@ -126,13 +126,16 @@ final class PlaybackCoordinator: ObservableObject {
     private var monitor: Task<Void, Never>?
     private var clearKeyPlayback: ClearKeyPlayback?
     private var activeChannel: Channel?
+    private var attemptFailures: [String] = []
 
     func start(_ channel: Channel) {
         stop()
         activeChannel = channel
+        attemptFailures = []
         switch channel.capability.container {
         case .hls:
             attempts = [.avPlayer, .vlc]
+            if channel.clearKey != nil { attempts.append(.clearKey) }
         case .dash:
             attempts = [.vlc]
             if channel.clearKey != nil { attempts.append(.clearKey) }
@@ -235,6 +238,7 @@ final class PlaybackCoordinator: ObservableObject {
                     return
                 }
                 if errored || Date().timeIntervalSince(startedAt) >= 15 {
+                    self.attemptFailures.append(self.currentFailure(timedOut: !errored))
                     self.advance()
                     return
                 }
@@ -257,13 +261,28 @@ final class PlaybackCoordinator: ObservableObject {
 
     private func finalFailureMessage() -> String {
         guard let channel = activeChannel else { return "Playback failed." }
+        let diagnostic = attemptFailures.isEmpty ? "" : " Tried: \(attemptFailures.joined(separator: "; "))."
         if channel.capability.drm == .widevine {
-            return "The stream did not play as clear media. Its Widevine declaration requires a licensed tvOS SDK."
+            return "The stream did not play as clear media. Its Widevine declaration requires a licensed tvOS SDK.\(diagnostic)"
         }
         if channel.capability.drm == .clearKey {
-            return "Clear playback and the available ClearKey path both failed. Check source access, codec support, and key metadata."
+            return "Clear playback and the available ClearKey path both failed. Check source access, codec support, and key metadata.\(diagnostic)"
         }
-        return "Playback failed in AVPlayer and VLC. Check source access and codec support."
+        return "Playback failed in AVPlayer and VLC. Check source access and codec support.\(diagnostic)"
+    }
+
+    private func currentFailure(timedOut: Bool) -> String {
+        switch engine {
+        case .avPlayer:
+            if let error = avPlayer.currentItem?.error as NSError? {
+                return "AVPlayer system error \(error.code)"
+            }
+            return timedOut ? "AVPlayer timed out" : "AVPlayer rejected the media"
+        case .vlc:
+            return timedOut ? "VLC timed out" : "VLC rejected the media"
+        case .clearKey:
+            return clearKeyPlayback?.status.message(timedOut: timedOut) ?? "ClearKey bridge could not start"
+        }
     }
 }
 

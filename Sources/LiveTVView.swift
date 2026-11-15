@@ -8,22 +8,39 @@ struct LiveTVView: View {
     @State private var group: String?
     @State private var favouritesOnly = false
     @State private var recentsOnly = false
+    @State private var selectedPlaylistID: UUID?
+    @State private var searchText = ""
     @State private var playing: Channel?
     @State private var importing = false
     @State private var showingGuide = false
 
     private var groups: [String] {
-        Set(model.channels.map(\.group)).sorted {
+        Set(playlistFilteredChannels.map(\.group)).sorted {
             $0.localizedStandardCompare($1) == .orderedAscending
         }
     }
 
     private var visibleChannels: [Channel] {
-        if favouritesOnly {
-            return model.channels.filter { model.favourites.contains($0.id) }
+        let base: [Channel]
+        if favouritesOnly { base = playlistFilteredChannels.filter { model.favourites.contains($0.id) } }
+        else if recentsOnly { base = model.recentChannels.filter(matchesPlaylist) }
+        else { base = playlistFilteredChannels.filter { group == nil || $0.group == group } }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return base }
+        return base.filter { channel in
+            channel.name.localizedCaseInsensitiveContains(query) ||
+            channel.group.localizedCaseInsensitiveContains(query) ||
+            (model.playlist(containing: channel)?.name.localizedCaseInsensitiveContains(query) ?? false)
         }
-        if recentsOnly { return model.recentChannels }
-        return model.channels.filter { group == nil || $0.group == group }
+    }
+
+    private var playlistFilteredChannels: [Channel] {
+        guard let selectedPlaylistID else { return model.channels }
+        return model.playlists.first(where: { $0.id == selectedPlaylistID })?.channels ?? []
+    }
+
+    private func matchesPlaylist(_ channel: Channel) -> Bool {
+        selectedPlaylistID == nil || model.playlist(containing: channel)?.id == selectedPlaylistID
     }
 
     var body: some View {
@@ -49,7 +66,7 @@ struct LiveTVView: View {
                     .navigationTitle("TV Guide")
                     .toolbar {
                         Button("Refresh", systemImage: "arrow.clockwise") {
-                            Task { await model.refreshGuide() }
+                            Task { await model.refreshGuide(for: selectedPlaylistID) }
                         }
                         Button("Close") { showingGuide = false }
                     }
@@ -81,6 +98,17 @@ struct LiveTVView: View {
             sidebarButton("Recent", icon: "clock.fill", selected: recentsOnly) {
                 recentsOnly = true; favouritesOnly = false; group = nil
             }
+            Divider().overlay(.white.opacity(0.1)).padding(.vertical, 4)
+            Text("PLAYLISTS").font(.caption2.bold()).foregroundStyle(.secondary)
+            sidebarButton("All Playlists", icon: "square.stack.3d.up", selected: selectedPlaylistID == nil) {
+                selectedPlaylistID = nil; group = nil
+            }
+            ForEach(model.playlists.filter(\.isEnabled)) { playlist in
+                sidebarButton(playlist.name, icon: "list.bullet.rectangle",
+                              selected: selectedPlaylistID == playlist.id) {
+                    selectedPlaylistID = playlist.id; group = nil
+                }
+            }
             Divider().overlay(.white.opacity(0.1)).padding(.vertical, 6)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
@@ -95,8 +123,8 @@ struct LiveTVView: View {
             Button("TV Guide", systemImage: "calendar") { showingGuide = true }
             Button("Import", systemImage: "square.and.arrow.down") { importing = true }
         }
-        .padding(34)
-        .frame(width: 330)
+        .padding(26)
+        .frame(width: 300)
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.3))
         .focusSection()
@@ -117,6 +145,10 @@ struct LiveTVView: View {
             }
             .padding(.horizontal, 44)
             .padding(.top, 38)
+
+            TextField("Search channels, groups, or playlists", text: $searchText)
+                .font(.body)
+                .padding(.horizontal, 44)
 
             if visibleChannels.isEmpty {
                 ContentUnavailableView {
@@ -151,7 +183,8 @@ struct LiveTVView: View {
     private var browserTitle: String {
         if favouritesOnly { return "Favourites" }
         if recentsOnly { return "Recently Watched" }
-        return group ?? "All Channels"
+        if let group { return group }
+        return model.playlists.first(where: { $0.id == selectedPlaylistID })?.name ?? "All Channels"
     }
 
     private func sidebarButton(
@@ -162,8 +195,9 @@ struct LiveTVView: View {
     ) -> some View {
         Button(action: action) {
             Label(title, systemImage: icon)
-                .font(.title3.weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+                .font(.body.weight(.semibold))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
                 .padding(.horizontal, 15)
                 .background(
                     selected ? liveAccent.opacity(0.18) : .clear,
@@ -183,8 +217,9 @@ struct LiveTVView: View {
                 HStack(spacing: 16) {
                     ChannelLogo(channel: channel).frame(width: 92, height: 70)
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(channel.name).font(.title3.bold()).lineLimit(1)
-                        Text(channel.group).foregroundStyle(.secondary).lineLimit(1)
+                        Text(channel.name).font(.headline.bold()).lineLimit(1)
+                        Text("\(model.playlist(containing: channel)?.name ?? "Playlist") · \(channel.group)")
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer()
                     if favourite {
@@ -210,7 +245,7 @@ struct LiveTVView: View {
                 }
             }
             .padding(18)
-            .frame(maxWidth: .infinity, minHeight: 154, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
             .background(livePanel, in: RoundedRectangle(cornerRadius: 18))
             .overlay {
                 RoundedRectangle(cornerRadius: 18)
@@ -256,7 +291,9 @@ private struct ImportSourcesView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var model: AppModel
     @State private var playlistAddress = ""
+    @State private var playlistName = ""
     @State private var guideAddress = ""
+    @State private var guidePlaylistID: UUID?
     @State private var uploadServer: PlaylistUploadServer?
     @State private var uploadStatus = "Starting local upload…"
 
@@ -269,20 +306,45 @@ private struct ImportSourcesView: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("Playlist URL") {
+                    TextField("Playlist name", text: $playlistName)
                     TextField("https://provider.example/playlist.m3u", text: $playlistAddress)
                         .textContentType(.URL)
                     Button("Import Playlist URL") {
-                        Task { await model.importPlaylist(from: playlistAddress) }
+                        Task { await model.importPlaylist(from: playlistAddress, name: playlistName) }
                     }
                     .disabled(playlistAddress.isEmpty)
                 }
                 Section("XMLTV Guide URL") {
+                    Picker("Playlist", selection: $guidePlaylistID) {
+                        Text("Choose Playlist").tag(UUID?.none)
+                        ForEach(model.playlists) { playlist in
+                            Text(playlist.name).tag(Optional(playlist.id))
+                        }
+                    }
                     TextField("https://provider.example/guide.xml", text: $guideAddress)
                         .textContentType(.URL)
                     Button("Import XMLTV Guide") {
-                        Task { await model.importGuide(from: guideAddress) }
+                        guard let guidePlaylistID else { return }
+                        Task { await model.importGuide(from: guideAddress, for: guidePlaylistID) }
                     }
-                    .disabled(guideAddress.isEmpty)
+                    .disabled(guideAddress.isEmpty || guidePlaylistID == nil)
+                }
+                Section("Saved Playlists") {
+                    ForEach(model.playlists) { playlist in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(playlist.name).font(.headline)
+                                Text("\(playlist.channels.count) channels")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Toggle("Enabled", isOn: Binding(
+                                get: { playlist.isEnabled },
+                                set: { model.setPlaylistEnabled(playlist.id, enabled: $0) }
+                            ))
+                            Button("Delete", role: .destructive) { model.deletePlaylist(playlist.id) }
+                        }
+                    }
                 }
                 Text("Imported sources are stored only inside the app sandbox. URLs, headers, and key data are never logged.")
                     .foregroundStyle(.secondary)
@@ -290,8 +352,12 @@ private struct ImportSourcesView: View {
             .navigationTitle("Add Sources")
             .toolbar { Button("Close") { dismiss() } }
             .onAppear {
-                guideAddress = model.guideURL?.absoluteString ?? ""
+                guidePlaylistID = model.playlists.first?.id
+                guideAddress = model.playlists.first?.guideURL?.absoluteString ?? ""
                 startUploadServer()
+            }
+            .onChange(of: guidePlaylistID) { _, id in
+                guideAddress = model.playlists.first(where: { $0.id == id })?.guideURL?.absoluteString ?? ""
             }
             .onDisappear { stopUploadServer() }
         }
@@ -303,7 +369,7 @@ private struct ImportSourcesView: View {
             uploadServer = try PlaylistUploadServer(address: { message in
                 Task { @MainActor in uploadStatus = message }
             }, upload: { data, completion in
-                Task { @MainActor in completion(model.importPlaylist(data: data)) }
+                Task { @MainActor in completion(model.importPlaylist(data: data, name: "Network Upload")) }
             })
         } catch {
             uploadStatus = "Local upload could not start. Check Local Network access."

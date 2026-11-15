@@ -41,25 +41,28 @@ struct ClearKeyConfiguration: Codable, Hashable {
         }
         struct License: Decodable { let keys: [Key] }
 
-        guard let license,
-              license.utf8.count <= 8_192,
-              let decoded = try? JSONDecoder().decode(
-                License.self,
-                from: Data(license.utf8)
-              ),
-              !decoded.keys.isEmpty,
-              decoded.keys.count <= 32 else {
+        guard let license, license.utf8.count <= 8_192 else {
             return nil
         }
         var pairs: [String: String] = [:]
-        for key in decoded.keys {
-            guard key.kty == "oct",
-                  let id = Self.hex(key.kid),
-                  let value = Self.hex(key.k),
-                  pairs[id] == nil || pairs[id] == value else {
-                return nil
+        if let decoded = try? JSONDecoder().decode(License.self, from: Data(license.utf8)) {
+            guard !decoded.keys.isEmpty, decoded.keys.count <= 32 else { return nil }
+            for key in decoded.keys {
+                guard key.kty == "oct", let id = Self.base64Hex(key.kid),
+                      let value = Self.base64Hex(key.k), pairs[id] == nil || pairs[id] == value else {
+                    return nil
+                }
+                pairs[id] = value
             }
-            pairs[id] = value
+        } else {
+            let entries = license.split(whereSeparator: { $0 == ":" || $0 == "," || $0 == ";" })
+            guard entries.count.isMultiple(of: 2), !entries.isEmpty, entries.count <= 64 else { return nil }
+            for index in stride(from: 0, to: entries.count, by: 2) {
+                let id = String(entries[index]).lowercased()
+                let value = String(entries[index + 1]).lowercased()
+                guard Self.isHexKey(id), Self.isHexKey(value), pairs[id] == nil || pairs[id] == value else { return nil }
+                pairs[id] = value
+            }
         }
         if let userAgent {
             guard userAgent.utf8.count <= 1_024,
@@ -71,7 +74,7 @@ struct ClearKeyConfiguration: Codable, Hashable {
         self.userAgent = userAgent
     }
 
-    private static func hex(_ value: String) -> String? {
+    private static func base64Hex(_ value: String) -> String? {
         var base64 = value
             .replacingOccurrences(of: "-", with: "+")
             .replacingOccurrences(of: "_", with: "/")
@@ -80,6 +83,10 @@ struct ClearKeyConfiguration: Codable, Hashable {
             return nil
         }
         return data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func isHexKey(_ value: String) -> Bool {
+        value.count == 32 && value.allSatisfy { $0.isHexDigit }
     }
 }
 
@@ -123,10 +130,10 @@ struct StreamCapability: Hashable {
     private static func explanation(container: StreamContainer, drm: DRMSystem) -> String {
         switch (container, drm) {
         case (.dash, .widevine): return "Widevine DASH requires a licensed third-party tvOS playback SDK."
-        case (.dash, .clearKey): return "ClearKey DASH is detected but is not implemented in this AVPlayer MVP."
-        case (.dash, _): return "MPEG-DASH is detected but is not supported by this AVPlayer MVP."
+        case (.dash, .clearKey): return "ClearKey DASH will use the local playback bridge after a clear-media attempt."
+        case (.dash, _): return "MPEG-DASH will use the VLC playback path."
         case (_, .widevine): return "Widevine is detected and is not natively supported by AVPlayer."
-        case (_, .clearKey): return "ClearKey is detected but its playback path is not implemented."
+        case (_, .clearKey): return "ClearKey will use the local playback bridge after a clear-media attempt."
         default: return "The stream type cannot be confirmed as compatible HLS."
         }
     }

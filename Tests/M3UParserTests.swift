@@ -65,5 +65,16 @@ final class M3UParserTests: XCTestCase {
         XCTAssertNotNil(channel.clearKey)
         XCTAssertEqual(channel.clearKey?.userAgent, "Example Player")
     }
+
+    func testParsesColonSeparatedHexClearKeyConfiguration() throws {
+        let id = String(repeating: "a", count: 32)
+        let key = String(repeating: "b", count: 32)
+        let configuration = try XCTUnwrap(ClearKeyConfiguration(
+            license: "\(id):\(key)",
+            userAgent: nil
+        ))
+        XCTAssertEqual(configuration.keys[id], key)
+        XCTAssertEqual(configuration.ffmpegKeys, "\(id)=\(key)")
+    }
 }
 

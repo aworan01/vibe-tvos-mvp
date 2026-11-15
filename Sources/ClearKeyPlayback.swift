@@ -40,10 +40,10 @@ extension IPTVRelayStatus {
         default: phase = "starting DASH playback"
         }
         if http_status > 0 {
-            return "ClearKey DASH: the server returned HTTP \(http_status) while \(phase)."
+            return "ClearKey: the server returned HTTP \(http_status) while \(phase)."
         }
         if timedOut {
-            return "ClearKey DASH: startup timed out while \(phase)."
+            return "ClearKey: startup timed out while \(phase)."
         }
         if source_error != 0 {
             let reason: String
@@ -59,9 +59,9 @@ extension IPTVRelayStatus {
             case .cannotParseResponse: reason = "the source returned an invalid byte range"
             default: reason = "the source connection failed (network code \(network_error))"
             }
-            return "ClearKey DASH: \(reason) while \(phase)."
+            return "ClearKey: \(reason) while \(phase)."
         }
-        return "ClearKey DASH failed while \(phase)."
+        return "ClearKey failed while \(phase)."
     }
 }
 

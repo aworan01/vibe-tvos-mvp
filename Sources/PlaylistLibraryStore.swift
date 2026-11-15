@@ -1,6 +1,38 @@
 import Foundation
 
+struct IPTVPlaylist: Identifiable, Codable, Equatable {
+    var id: UUID
+    var name: String
+    var sourceURL: URL?
+    var fingerprint: String
+    var isEnabled: Bool
+    var channels: [Channel]
+    var guideURL: URL?
+    var programmes: [EPGProgramme]
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        sourceURL: URL? = nil,
+        fingerprint: String,
+        isEnabled: Bool = true,
+        channels: [Channel],
+        guideURL: URL? = nil,
+        programmes: [EPGProgramme] = []
+    ) {
+        self.id = id
+        self.name = name
+        self.sourceURL = sourceURL
+        self.fingerprint = fingerprint
+        self.isEnabled = isEnabled
+        self.channels = channels
+        self.guideURL = guideURL
+        self.programmes = programmes
+    }
+}
+
 struct SavedLibrary: Codable, Equatable {
+    var playlists: [IPTVPlaylist] = []
     var channels: [Channel] = []
     var favourites: Set<UUID> = []
     var recentChannelIDs: [UUID] = []
@@ -9,6 +41,7 @@ struct SavedLibrary: Codable, Equatable {
     var programmes: [EPGProgramme] = []
 
     init(
+        playlists: [IPTVPlaylist] = [],
         channels: [Channel] = [],
         favourites: Set<UUID> = [],
         recentChannelIDs: [UUID] = [],
@@ -16,6 +49,7 @@ struct SavedLibrary: Codable, Equatable {
         guideURL: URL? = nil,
         programmes: [EPGProgramme] = []
     ) {
+        self.playlists = playlists
         self.channels = channels
         self.favourites = favourites
         self.recentChannelIDs = recentChannelIDs
@@ -25,11 +59,12 @@ struct SavedLibrary: Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case channels, favourites, recentChannelIDs, lastChannelID, guideURL, programmes
+        case playlists, channels, favourites, recentChannelIDs, lastChannelID, guideURL, programmes
     }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        playlists = try values.decodeIfPresent([IPTVPlaylist].self, forKey: .playlists) ?? []
         channels = try values.decodeIfPresent([Channel].self, forKey: .channels) ?? []
         favourites = try values.decodeIfPresent(Set<UUID>.self, forKey: .favourites) ?? []
         recentChannelIDs = try values.decodeIfPresent([UUID].self, forKey: .recentChannelIDs) ?? []
