@@ -11,5 +11,5 @@ jobs:
         run: brew install xcodegen
       - name: Generate project
         run: xcodegen generate
-      - name: Test
-        run: xcodebuild test -project VibeTV.xcodeproj -scheme VibeTV -destination 'platform=tvOS Simulator,name=Apple TV' CODE_SIGNING_ALLOWED=NO
+      - name: Compile app and tests
+        run: xcodebuild build-for-testing -project VibeTV.xcodeproj -scheme VibeTV -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO

@@ -17,6 +17,10 @@ An initial native SwiftUI media-player skeleton for tvOS 17 and later.
 2. Run 'xcodegen generate' in this directory.
 3. Open VibeTV.xcodeproj, select an Apple TV simulator, and run.
 
+GitHub Actions compiles the app and its test bundle against the generic tvOS
+Simulator destination. Running the tests requires a macOS machine with a tvOS
+Simulator runtime installed.
+
 The repository intentionally excludes playlists and secrets. Imported playlist metadata remains on the device. Do not commit provider URLs, HTTP headers, license URLs, tokens, or DRM key material.
 
 ## Current playback limits
