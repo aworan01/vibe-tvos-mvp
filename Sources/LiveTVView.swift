@@ -4,6 +4,8 @@ struct LiveTVView: View {
     @EnvironmentObject private var model: AppModel
     @State private var importing = false
     @State private var playlistAddress = ""
+    @State private var uploadServer: PlaylistUploadServer?
+    @State private var uploadStatus = "Starting local upload…"
 
     var body: some View {
         NavigationStack {
@@ -12,7 +14,7 @@ struct LiveTVView: View {
                     ContentUnavailableView {
                         Label("No Channels", systemImage: "dot.radiowaves.left.and.right")
                     } description: {
-                        Text("Add the address of an extended M3U playlist.")
+                        Text("Add a playlist URL or upload an M3U file from another device.")
                     } actions: {
                         Button("Import Playlist") { importing = true }
                     }
@@ -30,9 +32,23 @@ struct LiveTVView: View {
             .sheet(isPresented: $importing) {
                 NavigationStack {
                     Form {
-                        TextField("https://provider.example/playlist.m3u", text: $playlistAddress)
-                            .textContentType(.URL)
-                        Text("The address and imported metadata stay in app memory and are never logged.")
+                        Section("Upload from this network") {
+                            Text(uploadStatus)
+                                .textSelection(.enabled)
+                            Text("Open the address on a phone or computer connected to the same trusted network, then enter the displayed code.")
+                                .foregroundStyle(.secondary)
+                        }
+                        Section("Or add a playlist URL") {
+                            TextField("https://provider.example/playlist.m3u", text: $playlistAddress)
+                                .textContentType(.URL)
+                            Button("Import URL") {
+                                let address = playlistAddress
+                                importing = false
+                                Task { await model.importPlaylist(from: address) }
+                            }
+                            .disabled(playlistAddress.isEmpty)
+                        }
+                        Text("Imported playlist data is stored inside the app using Apple file protection. URLs and DRM values are never logged.")
                             .foregroundStyle(.secondary)
                     }
                     .navigationTitle("Add Playlist")
@@ -40,15 +56,9 @@ struct LiveTVView: View {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") { importing = false }
                         }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Import") {
-                                let address = playlistAddress
-                                importing = false
-                                Task { await model.importPlaylist(from: address) }
-                            }
-                            .disabled(playlistAddress.isEmpty)
-                        }
                     }
+                    .onAppear { startUploadServer() }
+                    .onDisappear { stopUploadServer() }
                 }
             }
             .alert("Playlist Import", isPresented: Binding(
@@ -58,6 +68,28 @@ struct LiveTVView: View {
                 Text(model.importMessage ?? "")
             }
         }
+    }
+
+    private func startUploadServer() {
+        guard uploadServer == nil else { return }
+        do {
+            uploadServer = try PlaylistUploadServer(address: { message in
+                Task { @MainActor in uploadStatus = message }
+            }, upload: { data, completion in
+                Task { @MainActor in
+                    let result = model.importPlaylist(data: data)
+                    completion(result)
+                }
+            })
+        } catch {
+            uploadStatus = "Local upload could not start. Check Local Network access."
+        }
+    }
+
+    private func stopUploadServer() {
+        uploadServer?.stop()
+        uploadServer = nil
+        uploadStatus = "Starting local upload…"
     }
 }
 

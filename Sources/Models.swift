@@ -1,6 +1,6 @@
 import Foundation
 
-struct Channel: Identifiable, Hashable {
+struct Channel: Identifiable, Hashable, Codable {
     let id: UUID
     let name: String
     let streamURL: URL
@@ -16,13 +16,13 @@ struct Channel: Identifiable, Hashable {
     var capability: StreamCapability { StreamCapability.assess(self) }
 }
 
-enum StreamContainer: String, Hashable {
+enum StreamContainer: String, Hashable, Codable {
     case hls = "HLS"
     case dash = "MPEG-DASH"
     case unknown = "Unknown"
 }
 
-enum DRMSystem: String, Hashable {
+enum DRMSystem: String, Hashable, Codable {
     case none = "None"
     case clearKey = "ClearKey"
     case widevine = "Widevine"

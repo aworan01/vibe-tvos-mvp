@@ -18,7 +18,7 @@ final class M3UParserTests: XCTestCase {
         XCTAssertEqual(channel.attributes["tvg-id"], "sample.one")
         XCTAssertEqual(channel.vlcOptions["http-user-agent"], "Example Player")
         XCTAssertEqual(channel.kodiProperties["inputstream.adaptive.manifest_type"], "mpd")
-        XCTAssertEqual(channel.rawMetadataLines.count, 6)
+        XCTAssertEqual(channel.rawMetadataLines.count, 5)
         XCTAssertEqual(channel.capability.container, .dash)
         XCTAssertEqual(channel.capability.drm, .clearKey)
         XCTAssertFalse(channel.capability.isNativelyPlayable)

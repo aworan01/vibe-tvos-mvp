@@ -3,17 +3,22 @@ import Foundation
 enum M3UParserError: LocalizedError {
     case invalidEncoding
     case noEntries
+    case tooLarge
 
     var errorDescription: String? {
         switch self {
         case .invalidEncoding: return "The file is not valid UTF-8."
         case .noEntries: return "No complete playlist entries were found."
+        case .tooLarge: return "The playlist is larger than the 8 MB import limit."
         }
     }
 }
 
 struct M3UParser {
+    static let maximumBytes = 8_388_608
+
     func parse(data: Data) throws -> [Channel] {
+        guard data.count <= Self.maximumBytes else { throw M3UParserError.tooLarge }
         guard let text = String(data: data, encoding: .utf8) else { throw M3UParserError.invalidEncoding }
         return try parse(text)
     }
@@ -33,7 +38,6 @@ struct M3UParser {
                 pending?.appendOption(line, prefix: "#KODIPROP:", toKodi: true)
             } else if !line.hasPrefix("#"), var item = pending, let url = URL(string: line),
                       let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) {
-                item.rawMetadataLines.append(line)
                 result.append(item.channel(url: url))
                 pending = nil
             }
