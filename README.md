@@ -21,6 +21,12 @@ GitHub Actions compiles the app and its test bundle against the generic tvOS
 Simulator destination. Running the tests requires a macOS machine with a tvOS
 Simulator runtime installed.
 
+Each successful GitHub Actions run also builds a Release app for physical Apple
+TV hardware and uploads 'VibeTV-unsigned.ipa' with its SHA-256 checksum under
+the run's Artifacts section. The IPA is unsigned and must be signed with an
+appropriate Apple development certificate and provisioning profile before it
+can be installed.
+
 The repository intentionally excludes playlists and secrets. Imported playlist metadata remains on the device. Do not commit provider URLs, HTTP headers, license URLs, tokens, or DRM key material.
 
 ## Current playback limits

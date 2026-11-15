@@ -13,3 +13,30 @@ jobs:
         run: xcodegen generate
       - name: Compile app and tests
         run: xcodebuild build-for-testing -project VibeTV.xcodeproj -scheme VibeTV -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO
+      - name: Build unsigned Apple TV app
+        run: |
+          xcodebuild build \
+            -project VibeTV.xcodeproj \
+            -scheme VibeTV \
+            -configuration Release \
+            -sdk appletvos \
+            -destination 'generic/platform=tvOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/package/Payload
+          cp -R build/DerivedData/Build/Products/Release-appletvos/VibeTV.app build/package/Payload/
+          cd build/package
+          zip -qry ../VibeTV-unsigned.ipa Payload
+          cd ..
+          shasum -a 256 VibeTV-unsigned.ipa > VibeTV-unsigned.ipa.sha256
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: VibeTV-unsigned-IPA
+          path: |
+            build/VibeTV-unsigned.ipa
+            build/VibeTV-unsigned.ipa.sha256
+          if-no-files-found: error
