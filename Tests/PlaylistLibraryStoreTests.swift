@@ -46,4 +46,30 @@ final class PlaylistLibraryStoreTests: XCTestCase {
         XCTAssertEqual(attempts[1], .atomic)
         XCTAssertEqual(try store.load(), expected)
     }
+
+    func testUsesSecondaryDirectoryWhenPrimaryIsNotWritable() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let primary = root.appendingPathComponent("primary", isDirectory: true)
+        let secondary = root.appendingPathComponent("secondary", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let expected = SavedLibrary()
+        let store = PlaylistLibraryStore(
+            directory: primary,
+            fallbackDirectories: [secondary]
+        ) { data, url, options in
+            if url.path.contains("/primary/") {
+                throw CocoaError(.fileWriteNoPermission)
+            }
+            try data.write(to: url, options: options)
+        }
+
+        try store.save(expected)
+
+        let reopened = PlaylistLibraryStore(
+            directory: primary,
+            fallbackDirectories: [secondary]
+        )
+        XCTAssertEqual(try reopened.load(), expected)
+    }
 }

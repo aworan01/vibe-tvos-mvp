@@ -41,10 +41,11 @@ an M3U file, enter the code, and send it. Uploads are limited to 8 MB, the code
 accepts one successful upload, and ten incorrect code attempts disable it.
 
 The parsed library is saved inside the private app sandbox and restored when
-the app launches again. The app requests complete file protection first. On
-Apple TV systems that reject lock-state file protection, it falls back to an
-atomic sandboxed write so the library remains usable and cannot be left
-partially written. Reinstalling or deleting the app removes this local library.
+the app launches again. Storage tries Application Support, Documents, and then
+Caches. At each location, the app requests complete file protection first and
+falls back to an atomic sandboxed write when tvOS rejects lock-state
+protection. Caches is a last resort and tvOS may purge it when storage is low.
+Reinstalling or deleting the app removes this local library.
 
 ## Current playback limits
 
