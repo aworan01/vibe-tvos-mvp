@@ -36,7 +36,7 @@ struct M3UParser {
                 pending?.appendOption(line, prefix: "#EXTVLCOPT:", toKodi: false)
             } else if line.uppercased().hasPrefix("#KODIPROP:") {
                 pending?.appendOption(line, prefix: "#KODIPROP:", toKodi: true)
-            } else if !line.hasPrefix("#"), var item = pending, let url = URL(string: line),
+            } else if !line.hasPrefix("#"), let item = pending, let url = URL(string: line),
                       let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) {
                 result.append(item.channel(url: url))
                 pending = nil

@@ -34,7 +34,6 @@ struct LiveTVView: View {
                     Form {
                         Section("Upload from this network") {
                             Text(uploadStatus)
-                                .textSelection(.enabled)
                             Text("Open the address on a phone or computer connected to the same trusted network, then enter the displayed code.")
                                 .foregroundStyle(.secondary)
                         }
