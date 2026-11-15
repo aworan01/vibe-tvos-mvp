@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+DerivedData/
+*.xcodeproj/
+xcuserdata/
+Config/Secrets.xcconfig
+*.m3u
+*.m3u8
+*.mpd
+
